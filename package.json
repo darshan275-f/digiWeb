@@ -1,0 +1,20 @@
+{
+  "name": "digi-web-processor",
+  "version": "1.0.0",
+  "description": "Data processing pipeline for DigiKey API integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "fetch-data": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "axios": "^1.6.0",
+    "xlsx": "^0.18.5"
+  },
+  "keywords": ["digikey", "api", "data-processing", "excel", "sql"],
+  "author": "Make-tronics",
+  "license": "MIT"
+}

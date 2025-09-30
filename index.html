@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+ <style>
+body {
+    font-family: Arial, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+}
+
+.card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+h3 {
+    color: #444;
+    margin-top: 0;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px;
+}
+
+.keys input {
+    margin: 6px 6px 6px 0;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+}
+
+.keys button {
+    margin-top: 8px;
+}
+
+.btn {
+    padding: 10px 16px;
+    margin-right: 8px;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    background-color: #007bff;
+    color: #fff;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+.btn.secondary {
+    background-color: #6c757d;
+}
+
+.btn.secondary:hover {
+    background-color: #5a6268;
+}
+
+.btn.loading {
+    background-color: #dc3545 !important;
+    cursor: not-allowed;
+    position: relative;
+    opacity: 0.8;
+}
+
+.btn.loading:hover {
+    background-color: #dc3545 !important;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin: -8px 0 0 -8px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+pre {
+    background: #fafafa;
+    padding: 12px;
+    border-radius: 6px;
+    max-height: 240px;
+    overflow: auto;
+    border: 1px solid #ddd;
+}
+
+input[type="file"] {
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+input[type="number"] {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+#progressBar {
+    height: 100%;
+    width: 0%;
+    background-color: #28a745;
+    color: white;
+    text-align: center;
+    line-height: 20px;
+    transition: width 0.3s;
+}
+
+ul#sqlFilesList {
+    list-style: none;
+    padding-left: 0;
+}
+
+ul#sqlFilesList li {
+    margin-bottom: 6px;
+}
+
+ul#sqlFilesList li a {
+    text-decoration: none;
+    color: #007bff;
+}
+
+ul#sqlFilesList li a:hover {
+    text-decoration: underline;
+}
+</style>
+
+</head>
+<body>
+  <h1>Data Processing Pipeline</h1>
+
+  <div class="card">
+    <h3>API Keys (add as many as you want)</h3>
+    <div id="apiKeysContainer" class="keys"></div>
+    <div style="margin-top:8px;">
+      <button class="btn" onclick="addApiKey()">+ Add API Key</button>
+      <button class="btn secondary" onclick="saveKeys()">Save Keys</button>
+      <button class="btn" onclick="loadKeys()">Load Keys</button>
+    </div>
+    <small>Saved keys are stored locally on the server in <code>keys.json</code>. They are not injected into client-side code.</small>
+  </div>
+
+  <div class="card">
+    <h3>Upload Text Files</h3>
+    <input type="file" id="txtFiles"  multiple accept=".txt">
+    <div style="margin-top:10px;">
+      <label>Base file number: <input id="baseFileNumber" type="number" value="1" min="1" style="width:80px;"></label>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn" onclick="uploadFiles()">Upload & Convert (TXT → XLSX)</button>
+      <button class="btn" onclick="runFullPipeline()">Run Full Pipeline</button>
+    </div>
+    <div style="margin-top:12px;">
+      <div style="width:100%; background:#eee; height:20px; border-radius:6px; overflow:hidden;">
+        <div id="progressBar" style="height:100%; width:0; background:#28a745; color:#fff; text-align:center;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Log / Server response</h3>
+    <pre id="log">Ready.</pre>
+  </div>
+ <div class="card">
+  <h3>Generated SQL Files</h3>
+  <ul id="sqlFilesList"></ul>
+  <button class="btn secondary" onclick="loadSqlFiles()">Refresh List</button>
+</div>
+<div class="card">
+  <h3>Generated CSV Files</h3>
+  <ul id="csvFilesList"></ul>
+  <button class="btn secondary" onclick="loadCsvFiles()">Refresh List</button>
+</div>
+
+<div class="card">
+  <h3>Generated XLSX Files</h3>
+  <ul id="xlsxFilesList"></ul>
+  <button class="btn secondary" onclick="loadXlsxFiles()">Refresh List</button>
+</div>
+
+
+<script>
+let keyCounter = 0;
+
+// Helper functions for button loading states
+function setButtonLoading(button, loading = true) {
+  if (loading) {
+    button.classList.add('loading');
+    button.disabled = true;
+    button.dataset.originalText = button.textContent;
+    button.textContent = 'Processing...';
+  } else {
+    button.classList.remove('loading');
+    button.disabled = false;
+    if (button.dataset.originalText) {
+      button.textContent = button.dataset.originalText;
+      delete button.dataset.originalText;
+    }
+  }
+}
+
+function setButtonLoadingById(buttonId, loading = true) {
+  const button = document.getElementById(buttonId);
+  if (button) setButtonLoading(button, loading);
+}
+
+// create one key input by default
+addApiKey();
+
+function addApiKey(id='', secret='') {
+  keyCounter++;
+  const container = document.getElementById("apiKeysContainer");
+  const div = document.createElement("div");
+  div.id = `keyrow-${keyCounter}`;
+  div.innerHTML = `
+    <input type="text" placeholder="Client ID" class="client_id" value="${id}" />
+    <input type="password" placeholder="Client Secret" class="client_secret" value="${secret}" />
+    <button onclick="removeKey('${div.id}')" class="btn secondary">Remove</button>
+  `;
+  container.appendChild(div);
+}
+
+function removeKey(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+async function saveKeys() {
+  const ids = Array.from(document.querySelectorAll('.client_id')).map(i => i.value.trim()).filter(v => v);
+  const secrets = Array.from(document.querySelectorAll('.client_secret')).map(i => i.value.trim()).filter(v => v);
+  if (ids.length !== secrets.length) {
+    return setLog('Please ensure each key row has both ID and secret.');
+  }
+  const keys = ids.map((id, idx) => ({ client_id: id, client_secret: secrets[idx] }));
+  const res = await fetch('/saveKeys', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keys })
+  });
+  const text = await res.text();
+  setLog(text);
+}
+  
+async function loadSqlFiles() {
+  try {
+    const res = await fetch('/listSql');
+    if (!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    const list = document.getElementById('sqlFilesList');
+    list.innerHTML = '';
+    if (!json.files.length) {
+      list.innerHTML = '<li>No SQL files found</li>';
+      return;
+    }
+    json.files.forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="/downloadSql/${encodeURIComponent(f)}" download>${f}</a>`;
+      list.appendChild(li);
+    });
+  } catch (err) {
+    console.error(err);
+    setLog('Failed to load SQL file list.');
+  }
+}
+
+// Load CSV files
+async function loadCsvFiles() {
+  try {
+    const res = await fetch('/listCsv');
+    if (!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    const list = document.getElementById('csvFilesList');
+    list.innerHTML = '';
+    if (!json.files.length) {
+      list.innerHTML = '<li>No CSV files found</li>';
+      return;
+    }
+    json.files.forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="/downloadCsv/${encodeURIComponent(f)}" download>${f}</a>`;
+      list.appendChild(li);
+    });
+  } catch (err) {
+    console.error(err);
+    setLog('Failed to load CSV file list.');
+  }
+}
+
+// Load XLSX files
+async function loadXlsxFiles() {
+  try {
+    const res = await fetch('/listXlsx');
+    if (!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    const list = document.getElementById('xlsxFilesList');
+    list.innerHTML = '';
+    if (!json.files.length) {
+      list.innerHTML = '<li>No XLSX files found</li>';
+      return;
+    }
+    json.files.forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="/downloadXlsx/${encodeURIComponent(f)}" download>${f}</a>`;
+      list.appendChild(li);
+    });
+  } catch (err) {
+    console.error(err);
+    setLog('Failed to load XLSX file list.');
+  }
+}
+
+
+
+
+async function loadKeys() {
+  const res = await fetch('/loadKeys');
+  if (!res.ok) { setLog('No keys present on server.'); return; }
+  const json = await res.json();
+  document.getElementById('apiKeysContainer').innerHTML = '';
+  json.keys.forEach(k => addApiKey(k.client_id, k.client_secret));
+  setLog('Loaded keys from server.');
+}
+
+async function uploadFiles() {
+  const files = document.getElementById("txtFiles").files;
+  if (!files.length) return setLog('Select at least one .txt file.');
+  const base = parseInt(document.getElementById('baseFileNumber').value) || 1;
+  const fd = new FormData();
+  for (let f of files) fd.append('txtFiles', f);
+  fd.append('baseFileNumber', base);
+  setProgress(0);
+  const res = await fetch('/uploadTxt', { method: 'POST', body: fd });
+  const text = await res.text();
+  setLog(text);
+  setProgress(100);
+}
+
+async function runFullPipeline() {
+  const base = parseInt(document.getElementById('baseFileNumber').value) || 1;
+  setLog('Starting pipeline...');
+  setProgress(5);
+  const res = await fetch('/runPipeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ baseFileNumber: base })
+  });
+  const json = await res.json();
+  setLog(JSON.stringify(json, null, 2));
+  setProgress(100);
+}
+
+function setLog(msg) {
+  document.getElementById('log').textContent = msg;
+}
+function setProgress(p) {
+  const el = document.getElementById('progressBar');
+  el.style.width = Math.min(Math.max(p,0),100) + '%';
+  el.textContent = Math.round(p) + '%';
+}
+</script>
+</body>
+</html>
