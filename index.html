@@ -200,6 +200,13 @@ ul#sqlFilesList li a:hover {
   <button class="btn secondary" onclick="loadXlsxFiles()">Refresh List</button>
 </div>
 
+<div class="card">
+  <h3>Not Fetched TXT Files</h3>
+  <ul id="txtFilesList"></ul>
+  <button class="btn secondary" onclick="loadTxtFiles()">Refresh List</button>
+</div>
+
+
 
 <script>
 let keyCounter = 0;
@@ -379,6 +386,91 @@ function setProgress(p) {
   el.style.width = Math.min(Math.max(p,0),100) + '%';
   el.textContent = Math.round(p) + '%';
 }
+// List failed TXT files
+async function loadTxtFiles() {
+  try {
+    const res = await fetch('/listTxt');
+    if (!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+
+    const list = document.getElementById('txtFilesList');
+    list.innerHTML = '';
+
+    if (!json.files.length) {
+      list.innerHTML = '<li>No TXT files found</li>';
+      return;
+    }
+
+    json.files.forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = `<a href="/downloadTxt/${encodeURIComponent(f)}" download>${f}</a>`;
+      list.appendChild(li);
+    });
+  } catch (err) {
+    console.error(err);
+    setLog('Failed to load TXT files.');
+  }
+}
+
+// Generic function to load files with delete button
+async function loadFiles(folder, ext, listId) {
+  try {
+    const res = await fetch(`/list${ext.toUpperCase()}`);
+    if (!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    const list = document.getElementById(listId);
+    list.innerHTML = '';
+
+    if (!json.files.length) {
+      list.innerHTML = `<li>No ${ext.toUpperCase()} files found</li>`;
+      return;
+    }
+
+    json.files.forEach(f => {
+      const li = document.createElement('li');
+
+      const link = document.createElement('a');
+      link.href = `/${folder}/${encodeURIComponent(f)}`;
+      link.download = f;
+      link.textContent = f;
+      li.appendChild(link);
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.style.marginLeft = '10px';
+      delBtn.className = 'btn secondary';
+      delBtn.onclick = async () => {
+        if (!confirm(`Are you sure you want to delete ${f}?`)) return;
+        try {
+          const res = await fetch(`/delete${ext.toUpperCase()}/${encodeURIComponent(f)}`, { method: 'DELETE' });
+          const json = await res.json();
+          if (res.ok && json.success) {
+            setLog(json.message);
+            loadFiles(folder, ext, listId); // refresh
+          } else {
+            setLog(json.error || 'Failed to delete file');
+          }
+        } catch (err) {
+          console.error(err);
+          setLog('Error deleting file');
+        }
+      };
+
+      li.appendChild(delBtn);
+      list.appendChild(li);
+    });
+  } catch (err) {
+    console.error(err);
+    setLog(`Failed to load ${ext.toUpperCase()} files.`);
+  }
+}
+
+// Load specific file types
+function loadSqlFiles() { loadFiles('sql', 'sql', 'sqlFilesList'); }
+function loadCsvFiles() { loadFiles('csv', 'csv', 'csvFilesList'); }
+function loadXlsxFiles() { loadFiles('xlsx', 'xlsx', 'xlsxFilesList'); }
+function loadTxtFiles() { loadFiles('csv', 'txt', 'txtFilesList'); }
+
 </script>
 </body>
 </html>

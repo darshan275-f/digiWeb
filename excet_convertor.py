@@ -25,3 +25,7 @@ for idx, chunk in enumerate(chunks):
     df.to_excel(out_file, index=False)
     print(f"Created {out_file} (part {idx+1})")
     file_counter += 1
+
+if os.path.exists(merged_file):
+    os.remove(merged_file)
+    print(f"Deleted merged file: {merged_file}")

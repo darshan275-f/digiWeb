@@ -139,7 +139,7 @@ async function processExcelFile(excelIndex, excelFilePath, key) {
   const csvPath = path.join('csv', `${baseNumber}.csv`);
   for (const productId of productIds) {
     await fetchProductAndAppend(token, key.client_id, productId, csvPath);
-     await sleep(50000); //50 seconds between requests to avoid rate limits
+     await sleep(0); //50 seconds between requests to avoid rate limits
   }
 }
 

@@ -172,6 +172,64 @@ app.get('/downloadXlsx/:filename', (req, res) => {
   res.download(file);
 });
 
+// List all .txt files in csv folder
+app.get('/listTxt', (req, res) => {
+  try {
+    const dir = path.join(__dirname, 'csv');
+    if (!fs.existsSync(dir)) return res.json({ files: [] });
+
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.txt'));
+    res.json({ files });
+  } catch (err) {
+    console.error('Error listing TXT files:', err);
+    res.status(500).json({ error: 'Failed to list TXT files' });
+  }
+});
+
+// Download a .txt file from csv folder
+app.get('/downloadTxt/:filename', (req, res) => {
+  const file = path.join(__dirname, 'csv', req.params.filename);
+
+  if (!fs.existsSync(file)) {
+    console.error('File not found:', file);
+    return res.status(404).send('File not found');
+  }
+
+  res.download(file, (err) => {
+    if (err) {
+      console.error('Download error:', err);
+    } else {
+      // Uncomment next line if you want to delete after download
+      // fs.unlinkSync(file);
+      console.log(`Downloaded: ${req.params.filename}`);
+    }
+  });
+});
+
+function addDeleteRoute(folder, ext) {
+  app.delete(`/delete${ext.toUpperCase()}/:filename`, (req, res) => {
+    const file = path.join(__dirname, folder, req.params.filename);
+
+    if (!fs.existsSync(file)) {
+      console.error('File not found:', file);
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    try {
+      fs.unlinkSync(file);
+      console.log(`Deleted: ${req.params.filename}`);
+      res.json({ success: true, message: `${req.params.filename} deleted` });
+    } catch (err) {
+      console.error('Delete error:', err);
+      res.status(500).json({ error: 'Failed to delete file' });
+    }
+  });
+}
+
+addDeleteRoute('csv', 'csv');
+addDeleteRoute('xlsx', 'xlsx');
+addDeleteRoute('sql', 'sql');
+addDeleteRoute('csv', 'txt');
 
 app.listen(port, () => {
   console.log(`Server running: http://localhost:${port}`);
