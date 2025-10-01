@@ -145,6 +145,14 @@ ul#sqlFilesList li a {
 ul#sqlFilesList li a:hover {
     text-decoration: underline;
 }
+
+.file-item {
+    margin-bottom: 12px; /* space below each file row */
+}
+
+.delete-btn {
+    margin-left: 20px; /* space between link and delete button */
+}
 </style>
 
 </head>
@@ -428,6 +436,7 @@ async function loadFiles(folder, ext, listId) {
 
     json.files.forEach(f => {
       const li = document.createElement('li');
+      li.className = 'file-item'; 
 
       const link = document.createElement('a');
       link.href = `/${folder}/${encodeURIComponent(f)}`;
@@ -438,7 +447,7 @@ async function loadFiles(folder, ext, listId) {
       const delBtn = document.createElement('button');
       delBtn.textContent = 'Delete';
       delBtn.style.marginLeft = '10px';
-      delBtn.className = 'btn secondary';
+      delBtn.className = 'btn secondary delete-btn';
       delBtn.onclick = async () => {
         if (!confirm(`Are you sure you want to delete ${f}?`)) return;
         try {
